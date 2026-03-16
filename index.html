@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consulta CNPJ Profissional v2</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --success: #16a34a;
+            --bg: #f8fafc;
+            --text: #1e293b;
+            --card-bg: #ffffff;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            padding: 40px 20px;
+        }
+
+        .dashboard {
+            background: var(--card-bg);
+            width: 100%;
+            max-width: 800px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: var(--primary);
+            padding: 30px;
+            color: white;
+            text-align: center;
+        }
+
+        .header h1 { margin: 0; font-size: 24px; }
+        .header p { margin: 10px 0 0; opacity: 0.9; font-size: 14px; }
+
+        .search-section {
+            padding: 30px;
+            border-bottom: 1px solid #f1f5f9;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .input-container {
+            display: flex;
+            width: 100%;
+            max-width: 500px;
+            gap: 10px;
+        }
+
+        input {
+            flex: 1;
+            padding: 14px 18px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+        }
+
+        button {
+            padding: 14px 24px;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-search { background: var(--primary); color: white; }
+        .btn-search:hover { background: var(--primary-hover); transform: translateY(-1px); }
+
+        .btn-pdf { 
+            background: var(--success); 
+            color: white; 
+            width: 100%; 
+            margin-top: 20px;
+            font-size: 16px;
+        }
+        .btn-pdf:hover { opacity: 0.9; }
+
+        #result-area {
+            display: none;
+            padding: 30px;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .info-card {
+            background: #f1f5f9;
+            padding: 15px;
+            border-radius: 12px;
+        }
+
+        .label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #64748b;
+            font-weight: 700;
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        .value {
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--text);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 600px) {
+            .input-container { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="dashboard">
+    <div class="header">
+        <h1>Consulta de Dados Empresariais</h1>
+        <p>Base de dados da Receita Federal via BrasilAPI</p>
+    </div>
+
+    <div class="search-section">
+        <div class="input-container">
+            <input type="text" id="cnpjInput" placeholder="00.000.000/0000-00" maxlength="14">
+            <button class="btn-search" onclick="fetchCNPJ()">Consultar CNPJ</button>
+        </div>
+    </div>
+
+    <div id="result-area">
+        <div class="data-grid" id="dataDisplay">
+            </div>
+        <button class="btn-pdf" onclick="generatePDF()">📄 Exportar Dados em PDF</button>
+    </div>
+</div>
+
+<script>
+    async function fetchCNPJ() {
+        const rawValue = document.getElementById('cnpjInput').value;
+        const cnpj = rawValue.replace(/\D/g, '');
+
+        if (cnpj.length !== 14) {
+            alert("O CNPJ deve conter exatamente 14 números.");
+            return;
+        }
+
+        try {
+            const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
+            const data = await response.json();
+
+            if (response.ok) {
+                renderData(data);
+            } else {
+                alert("CNPJ não encontrado.");
+            }
+        } catch (error) {
+            alert("Erro na conexão com o servidor.");
+        }
+    }
+
+    function renderData(data) {
+        const display = document.getElementById('dataDisplay');
+        document.getElementById('result-area').style.display = 'block';
+
+        const fields = [
+            { label: "Razão Social", value: data.razao_social },
+            { label: "Nome Fantasia", value: data.nome_fantasia || "Não disponível" },
+            { label: "CNPJ", value: data.cnpj },
+            { label: "Situação Cadastral", value: data.situacao_cadastral },
+            { label: "Data de Abertura", value: data.data_inicio_atividade },
+            { label: "Capital Social", value: `R$ ${data.capital_social.toLocaleString('pt-BR')}` },
+            { label: "Atividade Principal", value: data.cnae_fiscal_descricao },
+            { label: "Endereço Completo", value: `${data.logradouro}, ${data.numero} - ${data.bairro}, ${data.municipio}/${data.uf}` },
+            { label: "Telefone", value: data.ddd_telefone_1 || "Não informado" },
+            { label: "Natureza Jurídica", value: data.natureza_juridica }
+        ];
+
+        display.innerHTML = fields.map(field => `
+            <div class="info-card">
+                <span class="label">${field.label}</span>
+                <span class="value">${field.value}</span>
+            </div>
+        `).join('');
+    }
+
+    function generatePDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(20);
+        doc.text("Relatório de Informações Cadastrais", 20, 20);
+        
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        doc.text(`Gerado em: ${new Date().toLocaleString()}`, 20, 30);
+        doc.line(20, 35, 190, 35);
+
+        let y = 45;
+        const infoCards = document.querySelectorAll('.info-card');
+        
+        infoCards.forEach(card => {
+            const label = card.querySelector('.label').innerText;
+            const value = card.querySelector('.value').innerText;
+            
+            doc.setFont("helvetica", "bold");
+            doc.text(`${label}:`, 20, y);
+            doc.setFont("helvetica", "normal");
+            
+            const splitValue = doc.splitTextToSize(value, 120);
+            doc.text(splitValue, 70, y);
+            
+            y += (splitValue.length * 7);
+            if (y > 280) { doc.addPage(); y = 20; }
+        });
+
+        doc.save("relatorio_cnpj.pdf");
+    }
+</script>
+
+</body>
+</html>
